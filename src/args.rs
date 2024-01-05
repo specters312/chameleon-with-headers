@@ -64,6 +64,12 @@ pub struct Args {
     pub(crate) wordlist: Option<String>,
 
     #[clap(
+        short = 'H', 
+        long = "header", 
+        help = "Custom HTTP headers in the format key:value"
+        )]
+    pub(crate) headers: Option<Vec<String>>,
+    #[clap(
         short = 'W',
         long = "small-wordlist",
         help = "Wordlist used to generate files by adding extensions ( FUZZ.%ext )"
@@ -212,13 +218,24 @@ impl Args {
     }
 
     pub(crate) fn build_client(&self) -> Client {
-        let client_builder = http::builder()
+        let mut client_builder = http::builder()
             .connect_timeout(Duration::from_secs(5))
             .danger_accept_invalid_certs(true)
             .redirect(reqwest::redirect::Policy::none())
             //.proxy(reqwest::Proxy::https("http://127.0.0.1:8080").unwrap())
             .timeout(Duration::from_secs(5))
             .user_agent(&self.useragent);
+
+        // Add custom headers if provided
+        if let Some(ref headers) = self.headers {
+            for header in headers {
+                let parts: Vec<&str> = header.splitn(2, ':').collect();
+                if parts.len() == 2 {
+                    client_builder = client_builder.header(parts[0].trim(), parts[1].trim());
+                }
+            }
+        }
+
         client_builder.build().unwrap()
     }
 
